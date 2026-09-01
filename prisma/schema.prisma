@@ -1,0 +1,70 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                  String @id @default(nanoid())
+  email               String @unique
+  passwordHash        String @map("password_hash")
+  slug                String @unique
+  name                String
+  slotDurationMinutes Int    @default(30) @map("slot_duration_minutes")
+
+  bookings         Booking[]
+  availabilitySlot AvailabilitySlot[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Booking {
+  id          String        @id @default(nanoid())
+  userId      String        @map("user_id")
+  startTime   DateTime      @map("start_time")
+  endTime     DateTime      @map("end_time")
+  status      BookingStatus @default(ACTIVE)
+  clientName  String        @map("client_name")
+  clientEmail String?       @map("client_email")
+  clientPhone String?       @map("client_phone")
+
+  user User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("bookings")
+}
+
+model AvailabilitySlot {
+  id        String @id @default(nanoid())
+  userId    String @map("user_id")
+  startTime Int    @map("start_time")
+  endTime   Int    @map("end_time")
+  weekday   Int    @map("weekday")
+
+  user User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, weekday])
+  @@map("availability_slots")
+}
+
+enum BookingStatus {
+  ACTIVE
+  CANCELLED
+}
