@@ -17,7 +17,7 @@ model User {
   id                  String @id @default(nanoid())
   email               String @unique
   passwordHash        String @map("password_hash")
-  slug                String @unique
+  slug                String @unique @default(nanoid())
   name                String
   slotDurationMinutes Int    @default(30) @map("slot_duration_minutes")
 
