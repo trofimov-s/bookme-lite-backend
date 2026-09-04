@@ -1,12 +1,12 @@
-import { Controller, Get, NotFoundException, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, NotFoundException, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { plainToInstance } from 'class-transformer';
-import type { Request } from 'express';
 
 import { UserResponseDto } from './dto';
 import { UsersService } from './users.service';
 
 import { JwtAuthGuard } from '@/core';
+import { CurrentUser, type JwtPayload } from '@/shared';
 
 @ApiTags('Users')
 @Controller('users')
@@ -21,8 +21,8 @@ export class UsersController {
   })
   @UseGuards(JwtAuthGuard)
   @Get()
-  async getMe(@Req() request: Request): Promise<UserResponseDto | null> {
-    const user = await this.usersService.findById(request.user!.sub);
+  async getMe(@CurrentUser() payload: JwtPayload): Promise<UserResponseDto> {
+    const user = await this.usersService.findById(payload.sub);
 
     if (!user) {
       throw new NotFoundException('User not found');

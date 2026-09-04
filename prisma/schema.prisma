@@ -40,7 +40,7 @@ model Booking {
   clientEmail String?       @map("client_email")
   clientPhone String?       @map("client_phone")
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -55,7 +55,7 @@ model AvailabilitySlot {
   endTime   Int    @map("end_time")
   weekday   Int    @map("weekday")
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

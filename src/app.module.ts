@@ -6,10 +6,11 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth';
 import { ConfigModuleConfig } from './core';
 import { PrismaModule } from './prisma';
+import { ScheduleModule } from './schedule';
 import { UsersModule } from './users';
 
 @Module({
-  imports: [ConfigModule.forRoot(ConfigModuleConfig), PrismaModule, UsersModule, AuthModule],
+  imports: [ConfigModule.forRoot(ConfigModuleConfig), PrismaModule, UsersModule, AuthModule, ScheduleModule],
   controllers: [AppController],
   providers: [AppService],
 })
