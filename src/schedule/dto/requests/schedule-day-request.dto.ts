@@ -17,7 +17,7 @@ export class ScheduleDayRequestDto {
   @Max(1440)
   endTime: number;
 
-  @ApiProperty({ example: 1, description: 'The index of the day in a week. Start from Monday' })
+  @ApiProperty({ example: 1, description: 'The index of the day in a week. Start from Sunday' })
   @IsInt()
   @Min(0)
   @Max(6)

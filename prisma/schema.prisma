@@ -46,6 +46,7 @@ model Booking {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("bookings")
+  @@unique([userId, startTime])
 }
 
 model AvailabilitySlot {

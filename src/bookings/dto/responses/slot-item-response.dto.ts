@@ -1,12 +1,7 @@
 import { Exclude, Expose } from 'class-transformer';
 
 @Exclude()
-export class ScheduleResponseDto {
-  userId: string;
-
-  @Expose()
-  id: string;
-
+export class SlotItemResponseDto {
   @Expose()
   startTime: number;
 
@@ -14,5 +9,5 @@ export class ScheduleResponseDto {
   endTime: number;
 
   @Expose()
-  weekday: number;
+  isLocked: boolean;
 }

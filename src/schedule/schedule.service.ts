@@ -32,4 +32,15 @@ export class ScheduleService {
 
     return updatedDays;
   }
+
+  async getUserScheduleByWeekday(userId: string, weekday: number): Promise<AvailabilitySlot | null> {
+    return await this.prismaService.availabilitySlot.findUnique({
+      where: {
+        userId_weekday: {
+          userId,
+          weekday,
+        },
+      },
+    });
+  }
 }
