@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiConflictResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { plainToInstance } from 'class-transformer';
 
 import { BookingsService } from './bookings.service';
@@ -11,7 +11,7 @@ import {
   SlotResponseDto,
 } from './dto';
 
-import { JwtAuthGuard } from '@/core';
+import { ErrorResponseDto, JwtAuthGuard } from '@/core';
 import { CurrentUser, type JwtPayload } from '@/shared';
 
 @ApiTags('Bookings')
@@ -29,11 +29,15 @@ export class BookingsController {
     return this.bookingsService.getUserSlots(queries.slug, queries.date);
   }
 
-  @ApiOperation({ summary: 'Create a booking' })
+  @ApiOperation({ summary: 'Create booking' })
   @ApiResponse({
     status: HttpStatus.CREATED,
     summary: 'Booking was created',
     type: CreateBookingResponseDto,
+  })
+  @ApiConflictResponse({
+    type: ErrorResponseDto,
+    description: 'The selected slot is no longer available',
   })
   @Post()
   async createBooking(@Body() dto: CreateBookingRequestDto): Promise<CreateBookingResponseDto> {

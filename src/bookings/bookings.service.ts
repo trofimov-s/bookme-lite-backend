@@ -1,11 +1,13 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 
-import type { CreateBookingRequestDto, SlotItemResponseDto, SlotResponseDto } from './dto';
+import type { CreateBookingRequestDto, SlotResponseDto } from './dto';
+import { SLOTS_CALCULATION_UTILS } from './utils';
 
+import { AppException } from '@/core';
 import { Booking, BookingStatus, Prisma } from '@/generated/prisma/client';
 import { PrismaService } from '@/prisma';
 import { ScheduleService } from '@/schedule';
-import { DATE_UTILS } from '@/shared';
+import { DATE_UTILS, ErrorCode } from '@/shared';
 import { UsersService } from '@/users';
 
 @Injectable()
@@ -27,7 +29,7 @@ export class BookingsService {
     const day = await this.scheduleService.getUserScheduleByWeekday(user.id, weekday);
 
     if (!day) {
-      throw new NotFoundException(`Can not find the schedule for this date: "${date}"`);
+      return { date, slots: [] };
     }
 
     const bookings = await this.prismaService.booking.findMany({
@@ -39,7 +41,7 @@ export class BookingsService {
 
     const duration = user.slotDurationMinutes;
 
-    const slots = this.calculateSlots(bookings, duration, day.startTime, day.endTime);
+    const slots = SLOTS_CALCULATION_UTILS.calculateSlots(bookings, duration, day.startTime, day.endTime);
 
     return {
       date,
@@ -86,7 +88,11 @@ export class BookingsService {
     });
 
     if (booking) {
-      throw new ConflictException('Slot is locked');
+      throw new AppException(
+        ErrorCode.BOOKING_SLOT_UNAVAILABLE,
+        HttpStatus.CONFLICT,
+        'This slot is no longer available',
+      );
     }
 
     try {
@@ -104,7 +110,11 @@ export class BookingsService {
       return createdBooking;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        throw new ConflictException('Slot is locked');
+        throw new AppException(
+          ErrorCode.BOOKING_SLOT_UNAVAILABLE,
+          HttpStatus.CONFLICT,
+          'This slot is no longer available',
+        );
       }
 
       throw error;
@@ -130,37 +140,5 @@ export class BookingsService {
         status: BookingStatus.CANCELLED,
       },
     });
-  }
-
-  private calculateSlots(
-    bookings: Booking[],
-    duration: number,
-    startTime: number,
-    endTime: number,
-  ): SlotItemResponseDto[] {
-    const lockedSlots = this.calculateLockedSlots(bookings);
-    const slots: SlotItemResponseDto[] = [];
-
-    for (let step = startTime; step + duration <= endTime;) {
-      const currStartTime = step;
-      const currEndtime = step + duration;
-      const isLocked = lockedSlots.some(([busyStart, busyEnd]) => currStartTime < busyEnd && busyStart < currEndtime);
-
-      const slot: SlotItemResponseDto = {
-        startTime: currStartTime,
-        endTime: currEndtime,
-        isLocked,
-      };
-
-      slots.push(slot);
-
-      step += duration;
-    }
-
-    return slots;
-  }
-
-  private calculateLockedSlots(bookings: Booking[]): [number, number][] {
-    return bookings.map((item) => [DATE_UTILS.dateToMinutes(item.startTime), DATE_UTILS.dateToMinutes(item.endTime)]);
   }
 }

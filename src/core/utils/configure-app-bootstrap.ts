@@ -1,11 +1,14 @@
 import type { INestApplication } from '@nestjs/common';
-import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import { ClassSerializerInterceptor, HttpStatus, ValidationPipe } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 
-import { EnvKeys } from '@/shared';
+import { AppException } from '../exceptions';
+import { getValidationErrorMessages } from './get-validation-error-messages';
+
+import { EnvKeys, ErrorCode } from '@/shared';
 
 export function configureAppBootstrap(app: INestApplication, configService: ConfigService): void {
   app.use(cookieParser());
@@ -14,7 +17,16 @@ export function configureAppBootstrap(app: INestApplication, configService: Conf
     credentials: true,
   });
   app.setGlobalPrefix('api');
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+      exceptionFactory: (errors) => {
+        return new AppException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, getValidationErrorMessages(errors));
+      },
+    }),
+  );
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector), { excludeExtraneousValues: true }));
 
   const swaggerConfig = new DocumentBuilder()
