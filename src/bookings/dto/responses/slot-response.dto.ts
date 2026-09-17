@@ -15,6 +15,13 @@ export class SlotResponseDto {
   date: string;
 
   @ApiProperty({
+    example: 'Europe/Chisinau',
+    description: 'Timezone of the master whose slots are being viewed',
+  })
+  @Expose()
+  masterTimeZone: string;
+
+  @ApiProperty({
     description: 'An array of slots',
     type: [SlotItemResponseDto],
   })

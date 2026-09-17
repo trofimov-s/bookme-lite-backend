@@ -17,6 +17,7 @@ export class UsersService {
           passwordHash: data.passwordHash,
           name: data.name,
           slug: data.slug,
+          timeZone: data.timeZone,
         },
       });
     } catch (error) {

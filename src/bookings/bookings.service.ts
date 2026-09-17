@@ -18,34 +18,66 @@ export class BookingsService {
     private readonly scheduleService: ScheduleService,
   ) {}
 
-  async getUserSlots(slug: string, date: string): Promise<SlotResponseDto> {
+  async getUserSlots(slug: string, date: string, viewerTimeZone: string): Promise<SlotResponseDto> {
     const user = await this.usersService.findBySlug(slug);
 
     if (!user) {
       throw new NotFoundException(`User with slug: "${slug}" not found`);
     }
 
-    const { weekday, startOfDay, endOfDay } = DATE_UTILS.getUtcDayBounds(date);
-    const day = await this.scheduleService.getUserScheduleByWeekday(user.id, weekday);
+    const viewerDayBounds = DATE_UTILS.getDayBoundsInTimeZone(date, viewerTimeZone);
 
-    if (!day) {
-      return { date, slots: [] };
-    }
+    const masterDates = DATE_UTILS.getCalendarDatesInTimeZoneRange(
+      viewerDayBounds.startAt,
+      viewerDayBounds.endAt,
+      user.timeZone,
+    );
+
+    const masterDays = masterDates.map((masterDate) => ({
+      date: masterDate,
+      ...DATE_UTILS.getDayBoundsInTimeZone(masterDate, user.timeZone),
+    }));
+
+    const masterRangeStartAt = masterDays[0].startAt;
+    const masterRangeEndAt = masterDays[masterDays.length - 1].endAt;
 
     const bookings = await this.prismaService.booking.findMany({
       where: {
         userId: user.id,
-        startTime: { gte: startOfDay, lte: endOfDay },
+        status: BookingStatus.ACTIVE,
+        startTime: { lt: masterRangeEndAt },
+        endTime: { gt: masterRangeStartAt },
       },
     });
 
-    const duration = user.slotDurationMinutes;
+    const slotGroups = await Promise.all(
+      masterDays.map(async ({ date: masterDate, weekday }) => {
+        const schedule = await this.scheduleService.getUserScheduleByWeekday(user.id, weekday);
 
-    const slots = SLOTS_CALCULATION_UTILS.calculateSlots(bookings, duration, day.startTime, day.endTime);
+        if (!schedule) {
+          return [];
+        }
+
+        return SLOTS_CALCULATION_UTILS.calculateSlots({
+          bookings,
+          duration: user.slotDurationMinutes,
+          scheduleStartTime: schedule.startTime,
+          scheduleEndTime: schedule.endTime,
+          date: masterDate,
+          timeZone: user.timeZone,
+        });
+      }),
+    );
+
+    const slots = slotGroups
+      .flat()
+      .filter((slot) => slot.startAt >= viewerDayBounds.startAt && slot.startAt < viewerDayBounds.endAt)
+      .sort((firstSlot, secondSlot) => firstSlot.startAt.getTime() - secondSlot.startAt.getTime());
 
     return {
       date,
       slots,
+      masterTimeZone: user.timeZone,
     };
   }
 
@@ -56,38 +88,51 @@ export class BookingsService {
       throw new NotFoundException(`User with slug: "${dto.slug}" not found`);
     }
 
-    const { weekday } = DATE_UTILS.getUtcDayBounds(dto.date);
+    const startAt = new Date(dto.startAt);
 
-    const day = await this.scheduleService.getUserScheduleByWeekday(user.id, weekday);
-
-    if (!day) {
-      throw new NotFoundException(`Can not find the schedule for this date: "${dto.date}"`);
+    if (Number.isNaN(startAt.getTime())) {
+      throw new BadRequestException('Invalid booking start time');
     }
 
-    if (day.startTime > dto.startTime || day.endTime < dto.endTime) {
+    if (startAt.getUTCSeconds() !== 0 || startAt.getUTCMilliseconds() !== 0) {
+      throw new BadRequestException('Booking must start at an exact minute');
+    }
+
+    if (startAt < new Date()) {
+      throw new BadRequestException('Time cannot be in the past');
+    }
+
+    const { date: localDate, minutes: startMinutes } = DATE_UTILS.getDateAndMinutesInTimeZone(startAt, user.timeZone);
+
+    const { weekday } = DATE_UTILS.getDayBoundsInTimeZone(localDate, user.timeZone);
+    const daySchedule = await this.scheduleService.getUserScheduleByWeekday(user.id, weekday);
+
+    if (!daySchedule) {
+      throw new NotFoundException(`Cannot find schedule for this date: "${localDate}"`);
+    }
+
+    const duration = user.slotDurationMinutes;
+    const endMinutes = startMinutes + duration;
+
+    if (daySchedule.startTime > startMinutes || daySchedule.endTime < endMinutes) {
       throw new BadRequestException('Invalid time');
     }
 
-    if ((dto.startTime - day.startTime) % user.slotDurationMinutes !== 0) {
-      throw new BadRequestException('Incorrect slot duration');
+    if ((startMinutes - daySchedule.startTime) % duration !== 0) {
+      throw new BadRequestException('Incorrect slot start time');
     }
 
-    if (dto.endTime - dto.startTime !== user.slotDurationMinutes) {
-      throw new BadRequestException('Invalid slot duration');
-    }
+    const endAt = new Date(startAt.getTime() + duration * 60 * 1000);
 
-    if (DATE_UTILS.minutesToUtcDate(dto.date, dto.startTime) < new Date()) {
-      throw new BadRequestException('Time can not be in past');
-    }
-
-    const startTime = DATE_UTILS.minutesToUtcDate(dto.date, dto.startTime);
-    const endTime = DATE_UTILS.minutesToUtcDate(dto.date, dto.endTime);
-
-    const booking = await this.prismaService.booking.findFirst({
-      where: { userId: user.id, startTime, endTime },
+    const existingBooking = await this.prismaService.booking.findFirst({
+      where: {
+        userId: user.id,
+        startTime: startAt,
+        status: BookingStatus.ACTIVE,
+      },
     });
 
-    if (booking) {
+    if (existingBooking) {
       throw new AppException(
         ErrorCode.BOOKING_SLOT_UNAVAILABLE,
         HttpStatus.CONFLICT,
@@ -96,18 +141,16 @@ export class BookingsService {
     }
 
     try {
-      const createdBooking = await this.prismaService.booking.create({
+      return await this.prismaService.booking.create({
         data: {
           userId: user.id,
           clientName: dto.clientName,
           clientEmail: dto.clientEmail,
           clientPhone: dto.clientPhone,
-          startTime,
-          endTime,
+          startTime: startAt,
+          endTime: endAt,
         },
       });
-
-      return createdBooking;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new AppException(
@@ -122,7 +165,7 @@ export class BookingsService {
   }
 
   async getUserBookings(userId: string): Promise<Booking[]> {
-    return await this.prismaService.booking.findMany({ where: { userId }, orderBy: { startTime: 'desc' } });
+    return await this.prismaService.booking.findMany({ where: { userId }, orderBy: { startTime: 'asc' } });
   }
 
   async cancelBooking(userId: string, bookingId: string) {

@@ -19,6 +19,7 @@ model User {
   passwordHash        String @map("password_hash")
   slug                String @unique @default(nanoid())
   name                String
+  timeZone            String @map("time_zone")
   slotDurationMinutes Int    @default(30) @map("slot_duration_minutes")
 
   bookings         Booking[]
@@ -46,7 +47,6 @@ model Booking {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("bookings")
-  @@unique([userId, startTime])
 }
 
 model AvailabilitySlot {

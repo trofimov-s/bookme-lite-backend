@@ -3,23 +3,33 @@ import type { SlotItemResponseDto } from '../dto';
 import type { Booking } from '@/generated/prisma/client';
 import { DATE_UTILS } from '@/shared/utils/date.utils';
 
-function calculateSlots(
-  bookings: Booking[],
-  duration: number,
-  startTime: number,
-  endTime: number,
-): SlotItemResponseDto[] {
-  const lockedSlots = calculateLockedSlots(bookings);
+interface CalculateSlotsParams {
+  bookings: Booking[];
+  duration: number;
+  scheduleStartTime: number;
+  scheduleEndTime: number;
+  date: string;
+  timeZone: string;
+}
+
+function calculateSlots({
+  bookings,
+  duration,
+  scheduleStartTime,
+  scheduleEndTime,
+  date,
+  timeZone,
+}: CalculateSlotsParams): SlotItemResponseDto[] {
   const slots: SlotItemResponseDto[] = [];
 
-  for (let step = startTime; step + duration <= endTime;) {
-    const currStartTime = step;
-    const currEndtime = step + duration;
-    const isLocked = lockedSlots.some(([busyStart, busyEnd]) => currStartTime < busyEnd && busyStart < currEndtime);
+  for (let step = scheduleStartTime; step + duration <= scheduleEndTime;) {
+    const slotStartAt = DATE_UTILS.minutesInTimeZoneToUtc(date, step, timeZone);
+    const slotEndAt = DATE_UTILS.minutesInTimeZoneToUtc(date, step + duration, timeZone);
+    const isLocked = bookings.some((booking) => slotStartAt < booking.endTime && booking.startTime < slotEndAt);
 
     const slot: SlotItemResponseDto = {
-      startTime: currStartTime,
-      endTime: currEndtime,
+      startAt: slotStartAt,
+      endAt: slotEndAt,
       isLocked,
     };
 
@@ -29,10 +39,6 @@ function calculateSlots(
   }
 
   return slots;
-}
-
-function calculateLockedSlots(bookings: Booking[]): [number, number][] {
-  return bookings.map((item) => [DATE_UTILS.dateToMinutes(item.startTime), DATE_UTILS.dateToMinutes(item.endTime)]);
 }
 
 export const SLOTS_CALCULATION_UTILS = {

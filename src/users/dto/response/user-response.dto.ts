@@ -30,4 +30,11 @@ export class UserResponseDto {
   })
   @Expose()
   slug: string;
+
+  @ApiProperty({
+    description: 'Time zone of the user',
+    example: 'Europe/Chisinau',
+  })
+  @Expose()
+  timeZone: string;
 }

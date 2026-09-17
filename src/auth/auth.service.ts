@@ -28,6 +28,7 @@ export class AuthService {
       passwordHash: hashedPassword,
       name: data.name,
       slug: data.slug,
+      timeZone: data.timeZone,
     });
 
     const tokens = this.generateTokenPair(user.id, user.email);

@@ -26,7 +26,7 @@ export class BookingsController {
   })
   @Get()
   async getSlots(@Query() queries: GetSlotsQueryRequestDto) {
-    return this.bookingsService.getUserSlots(queries.slug, queries.date);
+    return this.bookingsService.getUserSlots(queries.slug, queries.date, queries.viewerTimeZone);
   }
 
   @ApiOperation({ summary: 'Create booking' })

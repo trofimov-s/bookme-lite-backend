@@ -4,25 +4,24 @@ import { Exclude, Expose } from 'class-transformer';
 @Exclude()
 export class SlotItemResponseDto {
   @ApiProperty({
-    example: 540,
-    description: 'Slot start time',
-    type: 'integer',
+    example: '2026-09-16T05:00:00.000Z',
+    description: 'UTC instant at which the slot starts',
+    format: 'date-time',
   })
   @Expose()
-  startTime: number;
+  startAt: Date;
 
   @ApiProperty({
-    example: 570,
-    description: 'Slot end time',
-    type: 'integer',
+    example: '2026-09-16T05:00:00.000Z',
+    description: 'UTC instant at which the slot ends',
+    format: 'date-time',
   })
   @Expose()
-  endTime: number;
+  endAt: Date;
 
   @ApiProperty({
     example: true,
     description: 'Is slot available',
-    type: 'boolean',
   })
   @Expose()
   isLocked: boolean;

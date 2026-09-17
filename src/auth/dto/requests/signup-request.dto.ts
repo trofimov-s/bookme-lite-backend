@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, IsTimeZone, Matches, MinLength } from 'class-validator';
 
 export class SignUpRequestDto {
   @IsEmail()
@@ -15,6 +15,10 @@ export class SignUpRequestDto {
   @IsNotEmpty()
   @ApiProperty({ example: 'John Doe', description: 'User full name' })
   name: string;
+
+  @IsTimeZone()
+  @ApiProperty({ example: 'Europe/Chisinau', description: 'User time zone' })
+  timeZone: string;
 
   @IsString()
   @IsOptional()

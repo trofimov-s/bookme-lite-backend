@@ -2,14 +2,11 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
   IsEmail,
-  IsInt,
   IsOptional,
   IsPhoneNumber,
   IsString,
   Matches,
-  Max,
   MaxLength,
-  Min,
   MinLength,
 } from 'class-validator';
 
@@ -28,33 +25,15 @@ export class CreateBookingRequestDto {
   slug: string;
 
   @ApiProperty({
-    example: '2026-09-04',
+    example: '2026-09-16T05:00:00.000Z',
     required: true,
-    format: 'date',
+    format: 'date-time',
   })
   @IsDateString()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'date must be in YYYY-MM-DD format' })
-  date: string;
-
-  @ApiProperty({
-    example: 540,
-    required: true,
-    type: 'integer',
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00\.000Z$/, {
+    message: 'startAt must be a UTC ISO date-time rounded to a minute',
   })
-  @IsInt()
-  @Min(0)
-  @Max(1440)
-  startTime: number;
-
-  @ApiProperty({
-    example: 570,
-    required: true,
-    type: 'integer',
-  })
-  @IsInt()
-  @Min(0)
-  @Max(1440)
-  endTime: number;
+  startAt: string;
 
   @ApiProperty({
     example: 'John Doe',
